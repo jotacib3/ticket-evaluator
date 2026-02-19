@@ -32,15 +32,7 @@ Your task is to evaluate AI-generated replies to customer support tickets on two
 ## Instructions
 - Evaluate the reply ONLY based on the ticket context provided.
 - Provide a brief explanation (1-2 sentences) justifying each score.
-- Be consistent: similar quality replies should receive similar scores.
-
-You MUST respond with a valid JSON object using this exact schema:
-{
-    "content_score": <integer 1-5>,
-    "content_explanation": "<brief explanation>",
-    "format_score": <integer 1-5>,
-    "format_explanation": "<brief explanation>"
-}"""
+- Be consistent: similar quality replies should receive similar scores."""
 
 
 def build_user_prompt(ticket: str, reply: str) -> str:

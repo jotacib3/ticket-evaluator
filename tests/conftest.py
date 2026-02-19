@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from ticket_evaluator.models import Ticket
+from ticket_evaluator.models import EvaluationResult, Ticket
 
 # ─── Sample Data ───
 
@@ -79,21 +79,13 @@ def missing_columns_csv(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def mock_openai_client() -> AsyncMock:
-    """Create a mock AsyncOpenAI client returning a valid JSON response."""
-    import json
-
+    """Create a mock AsyncOpenAI client returning a valid parsed response."""
     client = AsyncMock()
 
-    # Build the mock response chain: client.chat.completions.create()
-    mock_message = MagicMock()
-    mock_message.content = json.dumps(SAMPLE_LLM_RESPONSE)
-
-    mock_choice = MagicMock()
-    mock_choice.message = mock_message
-
+    # Build the mock response: client.responses.parse()
     mock_response = MagicMock()
-    mock_response.choices = [mock_choice]
+    mock_response.output_parsed = EvaluationResult(**SAMPLE_LLM_RESPONSE)
 
-    client.chat.completions.create = AsyncMock(return_value=mock_response)
+    client.responses.parse = AsyncMock(return_value=mock_response)
 
     return client

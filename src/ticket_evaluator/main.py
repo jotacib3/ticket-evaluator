@@ -70,6 +70,7 @@ async def run(settings: Settings) -> None:
         model=settings.openai_model,
         max_retries=settings.max_retries,
         max_concurrency=settings.max_concurrency,
+        reasoning_effort=settings.reasoning_effort,
     )
 
     # 3. Evaluate all tickets concurrently

@@ -10,10 +10,10 @@ class TestSystemPrompt:
         assert "Content Score" in SYSTEM_PROMPT
         assert "Format Score" in SYSTEM_PROMPT
 
-    def test_contains_json_schema_instruction(self) -> None:
-        assert "content_score" in SYSTEM_PROMPT
-        assert "format_score" in SYSTEM_PROMPT
-        assert "JSON" in SYSTEM_PROMPT
+    def test_contains_evaluation_criteria(self) -> None:
+        assert "relevance" in SYSTEM_PROMPT.lower()
+        assert "clarity" in SYSTEM_PROMPT.lower()
+        assert "Instructions" in SYSTEM_PROMPT
 
     def test_contains_all_score_levels(self) -> None:
         for level in ["1", "2", "3", "4", "5"]:

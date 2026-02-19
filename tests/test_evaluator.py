@@ -1,6 +1,5 @@
 """Tests for the async LLM ticket evaluator."""
 
-import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -15,7 +14,7 @@ def evaluator(mock_openai_client: AsyncMock) -> TicketEvaluator:
     """Create a TicketEvaluator with a mocked OpenAI client."""
     return TicketEvaluator(
         client=mock_openai_client,
-        model="gpt-4o-mini",
+        model="gpt-5.2",
         max_retries=2,
         max_concurrency=2,
     )
@@ -41,55 +40,27 @@ class TestEvaluate:
     async def test_empty_response_raises_error(
         self, evaluator: TicketEvaluator, sample_ticket: Ticket
     ) -> None:
-        # Override mock to return None content
-        mock_message = MagicMock()
-        mock_message.content = None
-        mock_choice = MagicMock()
-        mock_choice.message = mock_message
+        # Override mock to return None parsed output
         mock_response = MagicMock()
-        mock_response.choices = [mock_choice]
-        evaluator.client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_response.output_parsed = None
+        evaluator.client.responses.parse = AsyncMock(return_value=mock_response)
 
         with pytest.raises(EvaluationError, match="empty response"):
             await evaluator.evaluate(sample_ticket)
 
     @pytest.mark.asyncio
-    async def test_invalid_json_raises_error(
+    async def test_calls_responses_parse(
         self, evaluator: TicketEvaluator, sample_ticket: Ticket
     ) -> None:
-        # Override mock to return invalid JSON
-        mock_message = MagicMock()
-        mock_message.content = "not valid json"
-        mock_choice = MagicMock()
-        mock_choice.message = mock_message
-        mock_response = MagicMock()
-        mock_response.choices = [mock_choice]
-        evaluator.client.chat.completions.create = AsyncMock(return_value=mock_response)
+        """Verify that the evaluator calls client.responses.parse with correct args."""
+        await evaluator.evaluate(sample_ticket)
 
-        with pytest.raises(EvaluationError, match="parse"):
-            await evaluator.evaluate(sample_ticket)
-
-    @pytest.mark.asyncio
-    async def test_invalid_score_in_response_raises_error(
-        self, evaluator: TicketEvaluator, sample_ticket: Ticket
-    ) -> None:
-        # Return valid JSON but with out-of-range score
-        bad_response = {
-            "content_score": 10,  # Invalid: must be 1-5
-            "content_explanation": "test",
-            "format_score": 3,
-            "format_explanation": "test",
-        }
-        mock_message = MagicMock()
-        mock_message.content = json.dumps(bad_response)
-        mock_choice = MagicMock()
-        mock_choice.message = mock_message
-        mock_response = MagicMock()
-        mock_response.choices = [mock_choice]
-        evaluator.client.chat.completions.create = AsyncMock(return_value=mock_response)
-
-        with pytest.raises(EvaluationError, match="parse"):
-            await evaluator.evaluate(sample_ticket)
+        evaluator.client.responses.parse.assert_called_once()
+        call_kwargs = evaluator.client.responses.parse.call_args[1]
+        assert call_kwargs["model"] == "gpt-5.2"
+        assert call_kwargs["temperature"] == 0.0
+        assert "instructions" in call_kwargs
+        assert "text_format" in call_kwargs
 
 
 class TestEvaluateBatch:

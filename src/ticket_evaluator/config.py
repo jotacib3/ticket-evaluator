@@ -21,7 +21,8 @@ class Settings(BaseSettings):
 
     # ─── OpenAI Configuration ───
     openai_api_key: SecretStr
-    openai_model: str = "gpt-4o-mini"
+    openai_model: str = "gpt-5.2"
+    reasoning_effort: str | None = None  # none, low, medium, high, xhigh
 
     # ─── File Paths ───
     input_file: Path = Path("tickets.csv")

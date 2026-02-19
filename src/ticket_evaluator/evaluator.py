@@ -1,12 +1,11 @@
 """Async LLM-based ticket reply evaluator.
 
-Uses the OpenAI API with structured JSON output to evaluate
+Uses the OpenAI Responses API with Structured Outputs to evaluate
 customer support ticket replies on content and format dimensions.
 Supports concurrent evaluation with rate-limiting via semaphore.
 """
 
 import asyncio
-import json
 import logging
 
 from openai import APIConnectionError, APIStatusError, AsyncOpenAI, RateLimitError
@@ -34,10 +33,12 @@ class TicketEvaluator:
         model: str,
         max_retries: int = 3,
         max_concurrency: int = 3,
+        reasoning_effort: str | None = None,
     ) -> None:
         self.client = client
         self.model = model
         self.max_retries = max_retries
+        self.reasoning_effort = reasoning_effort
         self._semaphore = asyncio.Semaphore(max_concurrency)
 
     async def evaluate(self, ticket: Ticket) -> EvaluationResult:
@@ -61,22 +62,23 @@ class TicketEvaluator:
         for attempt in range(1, self.max_retries + 1):
             try:
                 async with self._semaphore:
-                    response = await self.client.chat.completions.create(
-                        model=self.model,
-                        messages=[
-                            {"role": "system", "content": SYSTEM_PROMPT},
+                    kwargs: dict = {
+                        "model": self.model,
+                        "instructions": SYSTEM_PROMPT,
+                        "input": [
                             {"role": "user", "content": user_prompt},
                         ],
-                        response_format={"type": "json_object"},
-                        temperature=0.0,  # Deterministic for consistent scoring
-                    )
+                        "text_format": EvaluationResult,
+                        "temperature": 0.0,  # Deterministic for consistent scoring
+                    }
+                    if self.reasoning_effort:
+                        kwargs["reasoning"] = {"effort": self.reasoning_effort}
 
-                content = response.choices[0].message.content
-                if content is None:
+                    response = await self.client.responses.parse(**kwargs)
+
+                result = response.output_parsed
+                if result is None:
                     raise EvaluationError("LLM returned empty response")
-
-                parsed = json.loads(content)
-                result = EvaluationResult(**parsed)
 
                 logger.info(
                     "Evaluated ticket (content=%d, format=%d): %.50s...",
@@ -85,10 +87,6 @@ class TicketEvaluator:
                     ticket.ticket,
                 )
                 return result
-
-            except (json.JSONDecodeError, KeyError, ValueError) as e:
-                # Non-retryable: malformed LLM response
-                raise EvaluationError(f"Failed to parse LLM response: {e}") from e
 
             except (RateLimitError, APIConnectionError, APIStatusError) as e:
                 last_error = e
