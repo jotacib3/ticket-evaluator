@@ -1,7 +1,7 @@
 [project]
 name = "ticket-evaluator"
 version = "0.1.0"
-description = "Add your description here"
+description = "LLM-powered evaluation of customer support ticket replies on content and format quality."
 readme = "README.md"
 authors = [{ name = "Juan Jose Lopez Martinez", email = "jotacib3@gmail.com" }]
 requires-python = ">=3.13"
