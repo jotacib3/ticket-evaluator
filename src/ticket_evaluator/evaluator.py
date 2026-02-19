@@ -69,7 +69,7 @@ class TicketEvaluator:
                             {"role": "user", "content": user_prompt},
                         ],
                         "text_format": EvaluationResult,
-                        "temperature": 0.2,  # Deterministic for consistent scoring
+                        "temperature": 0.2,  # Low temp for consistent yet nuanced scoring
                     }
                     if self.reasoning_effort:
                         kwargs["reasoning"] = {"effort": self.reasoning_effort}
@@ -106,27 +106,43 @@ class TicketEvaluator:
         )
 
     async def evaluate_batch(self, tickets: list[Ticket]) -> list[EvaluatedTicket]:
-        """Evaluate multiple tickets concurrently.
+        """Evaluate multiple tickets concurrently with fault tolerance.
 
-        Uses asyncio.gather with a semaphore to limit concurrent API calls
-        and avoid rate-limiting issues.
+        Uses asyncio.gather with a semaphore to limit concurrent API calls.
+        Individual ticket failures are caught and logged, allowing the batch
+        to complete with partial results rather than failing entirely.
 
         Args:
             tickets: List of tickets to evaluate.
 
         Returns:
-            List of EvaluatedTicket objects with scores and explanations.
+            List of successfully evaluated tickets. May be shorter than the
+            input list if some evaluations failed after all retries.
         """
 
-        async def _evaluate_single(ticket: Ticket) -> EvaluatedTicket:
-            result = await self.evaluate(ticket)
-            return EvaluatedTicket.from_ticket_and_result(ticket, result)
+        async def _evaluate_single(ticket: Ticket) -> EvaluatedTicket | None:
+            try:
+                result = await self.evaluate(ticket)
+                return EvaluatedTicket.from_ticket_and_result(ticket, result)
+            except EvaluationError:
+                logger.error(
+                    "Failed to evaluate ticket after all retries: %.50s...",
+                    ticket.ticket,
+                )
+                return None
 
         logger.info("Starting batch evaluation of %d tickets...", len(tickets))
 
-        evaluated = await asyncio.gather(
+        results = await asyncio.gather(
             *[_evaluate_single(ticket) for ticket in tickets]
         )
 
+        evaluated = [r for r in results if r is not None]
+        failed = len(tickets) - len(evaluated)
+        if failed:
+            logger.warning(
+                "%d/%d tickets failed evaluation and were skipped", failed, len(tickets)
+            )
+
         logger.info("Batch evaluation complete. %d tickets processed.", len(evaluated))
-        return list(evaluated)
+        return evaluated

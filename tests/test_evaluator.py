@@ -3,10 +3,12 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from openai import APIConnectionError
+
 
 from ticket_evaluator.evaluator import TicketEvaluator
 from ticket_evaluator.exceptions import EvaluationError
-from ticket_evaluator.models import Ticket
+from ticket_evaluator.models import EvaluationResult, Ticket
 
 
 @pytest.fixture
@@ -64,7 +66,7 @@ class TestEvaluate:
 
 
 class TestEvaluateBatch:
-    """Tests for batch ticket evaluation."""
+    """Tests for batch ticket evaluation, including fault tolerance."""
 
     @pytest.mark.asyncio
     async def test_batch_evaluation(
@@ -78,3 +80,52 @@ class TestEvaluateBatch:
             assert 1 <= result.format_score <= 5
             assert result.ticket  # Non-empty
             assert result.reply  # Non-empty
+
+    @pytest.mark.asyncio
+    async def test_batch_partial_failure_returns_successful_results(
+        self, mock_openai_client: AsyncMock
+    ) -> None:
+        """When some tickets fail, the batch still returns successful results."""
+        tickets = [
+            Ticket(ticket="This ticket will fail.", reply="Failing reply."),
+            Ticket(ticket="This ticket will succeed.", reply="Successful reply."),
+        ]
+        success_response = MagicMock()
+        success_response.output_parsed = EvaluationResult(
+            content_score=4,
+            content_explanation="Good response.",
+            format_score=4,
+            format_explanation="Well-structured.",
+        )
+
+        async def _mock_parse(**kwargs: object) -> MagicMock:
+            # Determine success/failure based on the ticket content
+            user_content = kwargs["input"][0]["content"]
+            if "will fail" in user_content:
+                raise APIConnectionError(request=MagicMock())
+            return success_response
+
+        mock_openai_client.responses.parse = AsyncMock(side_effect=_mock_parse)
+        evaluator = TicketEvaluator(
+            client=mock_openai_client, model="gpt-5.2", max_retries=2, max_concurrency=2
+        )
+
+        results = await evaluator.evaluate_batch(tickets)
+
+        # The failing ticket is skipped, the successful one is returned
+        assert len(results) == 1
+        assert results[0].content_score == 4
+        assert results[0].ticket == "This ticket will succeed."
+
+    @pytest.mark.asyncio
+    async def test_batch_all_failures_returns_empty_list(
+        self, evaluator: TicketEvaluator, sample_tickets: list[Ticket]
+    ) -> None:
+        """When all tickets fail, the batch returns an empty list instead of raising."""
+        evaluator.client.responses.parse = AsyncMock(
+            side_effect=EvaluationError("Simulated total failure")
+        )
+
+        results = await evaluator.evaluate_batch(sample_tickets)
+
+        assert results == []
