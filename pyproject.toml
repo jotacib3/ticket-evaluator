@@ -21,7 +21,7 @@ dev = [
 ]
 
 [project.scripts]
-ticket-evaluator = "ticket_evaluator:main"
+ticket-evaluator = "ticket_evaluator.main:main"
 
 [build-system]
 requires = ["uv_build>=0.10.4,<0.11.0"]
