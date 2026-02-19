@@ -10,4 +10,4 @@ wheels/
 .venv
 .env
 tickets_evaluated.csv
-tickets.csv
+.coverage
