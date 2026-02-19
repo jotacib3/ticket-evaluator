@@ -1,0 +1,17 @@
+[project]
+name = "ticket-evaluator"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Juan Jose Lopez Martinez", email = "jotacib3@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+ticket-evaluator = "ticket_evaluator:main"
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"
