@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from openai import APIConnectionError
 
-
 from ticket_evaluator.evaluator import TicketEvaluator
 from ticket_evaluator.exceptions import EvaluationError
 from ticket_evaluator.models import EvaluationResult, Ticket
@@ -49,6 +48,31 @@ class TestEvaluate:
 
         with pytest.raises(EvaluationError, match="empty response"):
             await evaluator.evaluate(sample_ticket)
+
+    @pytest.mark.asyncio
+    async def test_retries_on_api_error(
+        self, evaluator: TicketEvaluator, sample_ticket: Ticket
+    ) -> None:
+        """API error on first attempt triggers retry; second attempt succeeds."""
+        success_response = MagicMock()
+        success_response.output_parsed = EvaluationResult(
+            content_score=4,
+            content_explanation="Good.",
+            format_score=5,
+            format_explanation="Clear.",
+        )
+
+        evaluator.client.responses.parse = AsyncMock(
+            side_effect=[
+                APIConnectionError(request=MagicMock()),
+                success_response,
+            ]
+        )
+
+        result = await evaluator.evaluate(sample_ticket)
+
+        assert result.content_score == 4
+        assert evaluator.client.responses.parse.call_count == 2
 
     @pytest.mark.asyncio
     async def test_calls_responses_parse(
