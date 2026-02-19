@@ -9,6 +9,10 @@ from pathlib import Path
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# ─── Default File Paths ───
+INPUT_FILE = Path("tickets.csv")
+OUTPUT_FILE = Path("tickets_evaluated.csv")
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables or .env file."""
@@ -23,10 +27,6 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr
     openai_model: str = "gpt-5.2"
     reasoning_effort: str | None = None  # none, low, medium, high, xhigh
-
-    # ─── File Paths ───
-    input_file: Path = Path("tickets.csv")
-    output_file: Path = Path("tickets_evaluated.csv")
 
     # ─── Evaluation Settings ───
     max_concurrency: int = 3
