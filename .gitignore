@@ -9,3 +9,5 @@ wheels/
 # Virtual environments
 .venv
 .env
+tickets_evaluated.csv
+tickets.csv
