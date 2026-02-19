@@ -58,7 +58,7 @@ class TestEvaluate:
         evaluator.client.responses.parse.assert_called_once()
         call_kwargs = evaluator.client.responses.parse.call_args[1]
         assert call_kwargs["model"] == "gpt-5.2"
-        assert call_kwargs["temperature"] == 0.0
+        assert call_kwargs["temperature"] == 0.2
         assert "instructions" in call_kwargs
         assert "text_format" in call_kwargs
 

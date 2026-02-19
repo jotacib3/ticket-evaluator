@@ -69,7 +69,7 @@ class TicketEvaluator:
                             {"role": "user", "content": user_prompt},
                         ],
                         "text_format": EvaluationResult,
-                        "temperature": 0.0,  # Deterministic for consistent scoring
+                        "temperature": 0.2,  # Deterministic for consistent scoring
                     }
                     if self.reasoning_effort:
                         kwargs["reasoning"] = {"effort": self.reasoning_effort}
